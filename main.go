@@ -84,14 +84,14 @@ func main() {
     if err != nil {
         panic(err)
     }
-    
-    fmt.Println("TCP write:\n" + string(xmltext))
+
+    // fmt.Println("TCP write:\n" + string(xmltext))
     xmltext = BmesUploadAddHead(xmltext)
     xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
     if err != nil {
         panic(err)
     }
-    fmt.Println("TCP read:\n" + string(xmltext))
+    // fmt.Println("TCP read:\n" + string(xmltext))
 
     err = xml.Unmarshal(xmltext,&xmlstruct)
     if err != nil {
@@ -109,11 +109,17 @@ func main() {
         panic(err)
     }
 
-    fmt.Println("TCP write:\n" + string(xmltext))
+    // fmt.Println("TCP write:\n" + string(xmltext))
     xmltext = BmesUploadAddHead(xmltext)
     xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
     if err != nil {
         panic(err)
     }
-    fmt.Println("TCP read:\n" + string(xmltext))
+    // fmt.Println("TCP read:\n" + string(xmltext))
+
+    err = xml.Unmarshal(xmltext,&xmlstruct)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("id validate result: " + string(xmlstruct.Id_validate.Result))
 }
