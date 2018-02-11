@@ -6,7 +6,7 @@ import (
     "time"
     "encoding/xml"
     "errors"
-    // "crypto/md5"
+    "crypto/md5"
 )
 
 type XmlCommon struct {
@@ -72,11 +72,6 @@ func TCPwr(networkName string,data []byte) ([]byte, error) {
     return result, nil
 }
 
-// func ShaihaiBemsTCPgetData(data []byte) []byte {
-//     len := BytesToInt(data[3:7])
-//     return data[7:len+7]
-// }
-
 func main() {
     xmlstruct := XmlStruct{}
     xmlstruct.Common.Building_id = "JD310114BG0091"
@@ -88,21 +83,35 @@ func main() {
     if err != nil {
         panic(err)
     }
-    // fmt.Println(string(xmltext))
+    fmt.Println("TCP write:\n" + string(xmltext))
     xmltext = BmesUploadAddHead(xmltext)
-    // fmt.Printf("%x\n",xmltext)
     xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
     if err != nil {
         panic(err)
     }
-
-    fmt.Println(string(xmltext))
+    fmt.Println("TCP read:\n" + string(xmltext))
 
     err = xml.Unmarshal(xmltext,&xmlstruct)
     if err != nil {
         panic(err)
     }
+
+    secret := []byte("useruseruseruser")
     sequence := xmlstruct.Id_validate.Sequence
-    _ = sequence
-    fmt.Println(xmlstruct)
+    myMd5 := md5.Sum(BytesCombine(secret,[]byte(sequence)))
+    xmlstruct.Id_validate.Md5 = fmt.Sprintf("%x", myMd5)
+    xmlstruct.Id_validate.Operation = "md5"
+
+    xmltext, err = BemsUploadMarshal(xmlstruct)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println("TCP write:\n" + string(xmltext))
+    xmltext = BmesUploadAddHead(xmltext)
+    xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("TCP read:\n" + string(xmltext))
 }
