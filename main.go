@@ -59,13 +59,14 @@ func TCPwr(networkName string,data []byte) ([]byte, error) {
         return []byte{}, err
     }
     tcpcon.Write(data)
-    result, err := TCPread(tcpcon, 7, 500 * time.Millisecond)
+
+    result, err := TCPread(tcpcon, 7, 1000 * time.Millisecond)
     if err != nil {
         return result, err
     }
     len := BytesToInt(result[3:7])
 
-    result, err = TCPread(tcpcon, len, 500 * time.Millisecond)
+    result, err = TCPread(tcpcon, len, 1000 * time.Millisecond)
     if err != nil {
         return result, err
     }
@@ -83,6 +84,7 @@ func main() {
     if err != nil {
         panic(err)
     }
+    
     fmt.Println("TCP write:\n" + string(xmltext))
     xmltext = BmesUploadAddHead(xmltext)
     xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
