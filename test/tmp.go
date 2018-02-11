@@ -5,8 +5,6 @@ import (
     "net"
     "time"
     "encoding/xml"
-    "errors"
-    // "crypto/md5"
 )
 
 type XmlCommon struct {
@@ -36,47 +34,6 @@ func BmesUploadAddHead(data []byte) []byte {
     return BytesCombine([]byte("\x1F\x1F\x01"),IntToBytes(len(data)),data)
 }
 
-func TCPread(tcpcon *net.TCPConn, readNum int, timeout time.Duration) ([]byte, error) {
-    tcpcon.SetReadDeadline(time.Now().Add(timeout))
-    result := make([]byte,readNum)
-    byteRead, err := tcpcon.Read(result)
-    if err != nil {
-        return result, err
-    }
-    if byteRead != readNum {
-        return result, errors.New("TCP read timout")
-    }
-    return result, nil
-}
-
-func TCPwr(networkName string,data []byte) ([]byte, error) {
-    ip, err := net.ResolveTCPAddr("tcp",networkName)
-    if err != nil {
-        return []byte{}, err
-    }
-    tcpcon, err := net.DialTCP("tcp", nil, ip)
-    if err != nil {
-        return []byte{}, err
-    }
-    tcpcon.Write(data)
-    result, err := TCPread(tcpcon, 7, 500 * time.Millisecond)
-    if err != nil {
-        return result, err
-    }
-    len := BytesToInt(result[3:7])
-
-    result, err = TCPread(tcpcon, len, 500 * time.Millisecond)
-    if err != nil {
-        return result, err
-    }
-    return result, nil
-}
-
-// func ShaihaiBemsTCPgetData(data []byte) []byte {
-//     len := BytesToInt(data[3:7])
-//     return data[7:len+7]
-// }
-
 func main() {
     xmlstruct := XmlStruct{}
     xmlstruct.Common.Building_id = "JD310114BG0091"
@@ -91,11 +48,23 @@ func main() {
     // fmt.Println(string(xmltext))
     xmltext = BmesUploadAddHead(xmltext)
     // fmt.Printf("%x\n",xmltext)
-    xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
+    ip, err := net.ResolveTCPAddr("tcp","hncj1.yeep.net.cn:7201")
     if err != nil {
-        panic(err)
+        fmt.Println(err)
     }
-
+    tcpcon, err := net.DialTCP("tcp", nil, ip)
+    if err != nil {
+        fmt.Println(err)
+    }
+    tcpcon.Write(xmltext)
+    time.Sleep(100 * time.Millisecond)
+    byteread, err := tcpcon.Read(xmltext)
+    if err != nil {
+        fmt.Println(err)
+    }
+    fmt.Println(byteread)
+    len := BytesToInt(xmltext[3:7])
+    xmltext = xmltext[7:len+7]
     fmt.Println(string(xmltext))
 
     err = xml.Unmarshal(xmltext,&xmlstruct)

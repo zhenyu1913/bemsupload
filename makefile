@@ -1,0 +1,3 @@
+
+target:
+	go run *.go
