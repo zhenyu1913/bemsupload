@@ -20,13 +20,13 @@ func AesEncrypt(data, key []byte) ([]byte, error) {
      cipherBlockSize := myCipher.BlockSize()
      data = PKCS5Padding(data, cipherBlockSize)
      encrypter := cipher.NewCBCEncrypter(myCipher, key)
-     crypted := []byte{}
+     crypted := make([]byte, len(data))
      encrypter.CryptBlocks(crypted, data)
      return crypted, nil
 }
 
 func BemsUploadEncrypt(b []byte) ([]byte, error) {
-    b, err := AesEncrypt(b , []byte("aes.modeaes.mode"))
+    b, err := AesEncrypt(b , []byte("useruseruseruser"))
     if err != nil {
         return []byte(""), err
     }
@@ -39,13 +39,13 @@ func AesDecrypt(data, key []byte) ([]byte, error) {
           return nil, err
      }
      decrypter := cipher.NewCBCDecrypter(myCipher, key)
-     decrypted := []byte{}
+     decrypted := make([]byte, len(data))
      decrypter.CryptBlocks(decrypted, data)
      return decrypted, nil
 }
 
 func BemsUploadDecrypt(b []byte) ([]byte, error) {
-    b, err := AesDecrypt(b , []byte("aes.modeaes.mode"))
+    b, err := AesDecrypt(b , []byte("useruseruseruser"))
     if err != nil {
         return []byte(""), err
     }

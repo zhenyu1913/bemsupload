@@ -1,8 +1,11 @@
 package main
 
 import (
+    "time"
     "bytes"
     "encoding/binary"
+    "net"
+    "errors"
 )
 
 func IntToBytes(n int) []byte {
@@ -21,4 +24,53 @@ func BytesToInt(b []byte) int  {
 
 func BytesCombine(pBytes ...[]byte) []byte {
     return bytes.Join(pBytes, []byte(""))
+}
+
+func TCPread(tcpcon *net.TCPConn, readNum int, timeout time.Duration) ([]byte, error) {
+    tcpcon.SetReadDeadline(time.Now().Add(timeout))
+    result := make([]byte,readNum)
+    byteRead, err := tcpcon.Read(result)
+    if err != nil {
+        return result, err
+    }
+    if byteRead != readNum {
+        return result, errors.New("TCP read timout")
+    }
+    return result, nil
+}
+
+func TCPwr(networkName string,data []byte) ([]byte, error) {
+    ip, err := net.ResolveTCPAddr("tcp",networkName)
+    if err != nil {
+        panic(err)
+    }
+    if err != nil {
+        return []byte{}, err
+    }
+    tcpcon, err := net.DialTCP("tcp", nil, ip)
+    if err != nil {
+        panic(err)
+    }
+    if err != nil {
+        return []byte{}, err
+    }
+    tcpcon.Write(data)
+
+    result, err := TCPread(tcpcon, 7, 1000 * time.Millisecond)
+    if err != nil {
+        panic(err)
+    }
+    if err != nil {
+        return result, err
+    }
+    len := BytesToInt(result[3:7])
+
+    result, err = TCPread(tcpcon, len, 1000 * time.Millisecond)
+    if err != nil {
+        panic(err)
+    }
+    if err != nil {
+        return result, err
+    }
+    return result, nil
 }
