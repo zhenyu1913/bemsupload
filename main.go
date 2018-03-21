@@ -3,7 +3,9 @@ package main
 import (
 	"crypto/md5"
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"log"
 )
 
 type XsCommon struct {
@@ -61,6 +63,16 @@ type XsData struct {
 	}
 }
 
+type XsDataAck struct {
+	XMLName xml.Name `xml:"root"`
+	Common  XsCommon
+	Data    struct {
+		XMLName xml.Name `xml:"data"`
+		Time    string   `xml:"time"`
+		Ack     string   `xml:"ack"`
+	}
+}
+
 func getXsCommon() XsCommon {
 	xsCommon := XsCommon{}
 	xsCommon.Building_id = "JD310114BG0091"
@@ -85,32 +97,35 @@ func AddDataHead(data []byte) []byte {
 	return BytesCombine([]byte("\x1F\x1F\x03"), IntToBytes(len(data)), data)
 }
 
-func SendXsValidate(xs XsValidate) []byte {
+func SendXsValidate(xs XsValidate) ([]byte, error) {
 	text, err := XsMarshal(xs)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("TCP write:\n" + string(text))
+	log.Println("TCP write:\n" + string(text))
 	text = AddValidateHead(text)
 	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	fmt.Println("TCP read:\n" + string(text))
-	return text
+	log.Println("TCP read:\n" + string(text))
+	return text, nil
 }
 
-func Validate(secret string) bool {
+func Validate(secret string) error {
 
 	xsValidate := XsValidate{}
 	xsValidate.Common = getXsCommon()
 	xsValidate.Common.Type = "id_validate"
 	xsValidate.Id_validate.Operation = "request"
 
-	text := SendXsValidate(xsValidate)
+	text, err := SendXsValidate(xsValidate)
+	if err != nil {
+		return err
+	}
 
-	err := xml.Unmarshal(text, &xsValidate)
+	err = xml.Unmarshal(text, &xsValidate)
 	if err != nil {
 		panic(err)
 	}
@@ -120,7 +135,10 @@ func Validate(secret string) bool {
 	xsValidate.Id_validate.Md5 = fmt.Sprintf("%x", myMd5)
 	xsValidate.Id_validate.Operation = "md5"
 
-	text = SendXsValidate(xsValidate)
+	text, err = SendXsValidate(xsValidate)
+	if err != nil {
+		return err
+	}
 
 	err = xml.Unmarshal(text, &xsValidate)
 	if err != nil {
@@ -128,13 +146,13 @@ func Validate(secret string) bool {
 	}
 
 	if string(xsValidate.Id_validate.Result) == "pass" {
-		return true
-	} else {
-		return false
+		log.Println("id validate: success")
+		return nil
 	}
+	return errors.New("id validate not getting the correct reply")
 }
 
-func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) {
+func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) error {
 
 	xsData := XsData{}
 	xsData.Data.Operation = "report"
@@ -150,7 +168,7 @@ func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) {
 		panic(err)
 	}
 
-	fmt.Println("TCP write:\n" + string(text))
+	log.Println("TCP write:\n" + string(text))
 	text, err = BemsUploadEncrypt(text)
 	if err != nil {
 		panic(err)
@@ -159,15 +177,30 @@ func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) {
 
 	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
+		return err
+	}
+	log.Println("TCP read:\n" + string(text))
+
+	xsDataAck := XsDataAck{}
+	err = xml.Unmarshal(text, &xsDataAck)
+	if err != nil {
 		panic(err)
 	}
-	fmt.Println("TCP read:\n" + string(text))
+
+	if string(xsDataAck.Data.Ack) == "OK" {
+		log.Println("send data: success")
+		return nil
+	}
+	return errors.New("send data not getting the correct reply")
 }
 
-func main() {
+func sendData() error {
 	secret := "useruseruseruser"
 
-	Validate(secret)
+	err := Validate(secret)
+	if err != nil {
+		return err
+	}
 
 	energyItem := XsEnergyItem{}
 	energyItem.Value = "1"
@@ -181,5 +214,14 @@ func main() {
 
 	energyItems := []XsEnergyItem{energyItem}
 	meters := []XsMeter{meter}
-	SendData(secret, energyItems, meters)
+	err = SendData(secret, energyItems, meters)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	sendData()
 }
