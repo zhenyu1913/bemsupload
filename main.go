@@ -1,157 +1,185 @@
 package main
 
 import (
-    "fmt"
-    "encoding/xml"
-    "crypto/md5"
+	"crypto/md5"
+	"encoding/xml"
+	"fmt"
 )
 
-type XmlCommon struct {
-    XMLName xml.Name `xml:"common"`
-    Building_id string `xml:"building_id"`
-    Gateway_id string `xml:"gateway_id"`
-    Type string `xml:"type"`
+type XsCommon struct {
+	XMLName     xml.Name `xml:"common"`
+	Building_id string   `xml:"building_id"`
+	Gateway_id  string   `xml:"gateway_id"`
+	Type        string   `xml:"type"`
 }
 
-type Id_validate_quiest struct {
-    Common XmlCommon
+type XsValidate struct {
+	XMLName     xml.Name `xml:"root"`
+	Common      XsCommon
+	Id_validate struct {
+		XMLName   xml.Name `xml:"id_validate"`
+		Operation string   `xml:"operation,attr"`
+		Sequence  string   `xml:"sequence"`
+		Md5       string   `xml:"md5"`
+		Result    string   `xml:"result"`
+	}
 }
 
-type XmlValidate struct {
-    XMLName xml.Name `xml:"root"`
-    Common XmlCommon
-    Id_validate struct {
-        XMLName xml.Name `xml:"id_validate"`
-        Operation string `xml:"operation,attr"`
-        Sequence string `xml:"sequence"`
-        Md5 string `xml:"md5"`
-        Result string `xml:"result"`
-    }
+type XsEnergyItem struct {
+	XMLName xml.Name `xml:"energy_item"`
+	Code    string   `xml:"code,attr"`
+	Value   string   `xml:",innerxml"`
 }
 
-type XmlEnergyItem struct {
-    XMLName xml.Name `xml:"energy_item"`
-    Code string `xml:"code,attr"`
-    Value string `xml:",innerxml"`
+type XsMeter struct {
+	XMLName  xml.Name `xml:"meter"`
+	Id       string   `xml:"id,attr"`
+	Name     string   `xml:"name,attr"`
+	Function struct {
+		XMLName xml.Name `xml:"function"`
+		Id      string   `xml:"id,attr"`
+		Error   string   `xml:"error,attr"`
+		Value   string   `xml:",innerxml"`
+	}
 }
 
-type XmlMeter struct {
-    XMLName xml.Name `xml:"meter"`
-    Id string `xml:"id,attr"`
-    Name string `xml:"name,attr"`
-    Function struct {
-        XMLName xml.Name `xml:"function"`
-        Id string `xml:"id,attr"`
-        Error string `xml:"error,attr"`
-        Value string `xml:",innerxml"`
-    }
+type XsData struct {
+	XMLName xml.Name `xml:"root"`
+	Common  XsCommon
+	Data    struct {
+		XMLName     xml.Name `xml:"data"`
+		Operation   string   `xml:"operation,attr"`
+		Time        string   `xml:"time"`
+		EnergyItems struct {
+			XMLName xml.Name `xml:"energy_items"`
+			Items   []XsEnergyItem
+		}
+		Meters struct {
+			XMLName xml.Name `xml:"meters"`
+			Items   []XsMeter
+		}
+	}
 }
 
-type XmlData struct {
-    XMLName xml.Name `xml:"root"`
-    Common XmlCommon
-    Data struct {
-        XMLName xml.Name `xml:"data"`
-        Operation string `xml:"operation,attr"`
-        Time string `xml:"time"`
-        Energy_items struct {
-            XMLName xml.Name `xml:"energy_items"`
-            Items []XmlEnergyItem
-        }
-        Meters struct {
-            XMLName xml.Name `xml:"meters"`
-            Items []XmlMeter
-        }
-    }
+func getXsCommon() XsCommon {
+	xsCommon := XsCommon{}
+	xsCommon.Building_id = "JD310114BG0091"
+	xsCommon.Gateway_id = "01"
+	return xsCommon
 }
 
-
-func BmesUploadAddHead(data []byte) []byte {
-    return BytesCombine([]byte("\x1F\x1F\x01"),IntToBytes(len(data)),data)
+func XsMarshal(xmlstruct interface{}) ([]byte, error) {
+	text, err := xml.MarshalIndent(xmlstruct, "", "    ")
+	if err != nil {
+		return []byte(""), err
+	}
+	text = BytesCombine([]byte(`<?xml version="1.0" encoding="UTF-8"?>`+"\n"), text)
+	return text, nil
 }
 
-func BmesUploadAddDataHead(data []byte) []byte {
-    return BytesCombine([]byte("\x1F\x1F\x03"),IntToBytes(len(data)),data)
+func AddValidateHead(data []byte) []byte {
+	return BytesCombine([]byte("\x1F\x1F\x01"), IntToBytes(len(data)), data)
 }
 
-func BemsUploadSendXml(xml interface{}) []byte {
-    xmltext, err := BemsUploadMarshal(xml)
-    if err != nil {
-        panic(err)
-    }
+func AddDataHead(data []byte) []byte {
+	return BytesCombine([]byte("\x1F\x1F\x03"), IntToBytes(len(data)), data)
+}
 
-    fmt.Println("TCP write:\n" + string(xmltext))
-    xmltext = BmesUploadAddHead(xmltext)
-    xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("TCP read:\n" + string(xmltext))
-    return xmltext
+func SendXsValidate(xs XsValidate) []byte {
+	text, err := XsMarshal(xs)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("TCP write:\n" + string(text))
+	text = AddValidateHead(text)
+	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("TCP read:\n" + string(text))
+	return text
+}
+
+func Validate(secret string) bool {
+
+	xsValidate := XsValidate{}
+	xsValidate.Common = getXsCommon()
+	xsValidate.Common.Type = "id_validate"
+	xsValidate.Id_validate.Operation = "request"
+
+	text := SendXsValidate(xsValidate)
+
+	err := xml.Unmarshal(text, &xsValidate)
+	if err != nil {
+		panic(err)
+	}
+
+	sequence := xsValidate.Id_validate.Sequence
+	myMd5 := md5.Sum(BytesCombine([]byte(secret), []byte(sequence)))
+	xsValidate.Id_validate.Md5 = fmt.Sprintf("%x", myMd5)
+	xsValidate.Id_validate.Operation = "md5"
+
+	text = SendXsValidate(xsValidate)
+
+	err = xml.Unmarshal(text, &xsValidate)
+	if err != nil {
+		panic(err)
+	}
+
+	if string(xsValidate.Id_validate.Result) == "pass" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) {
+
+	xsData := XsData{}
+	xsData.Data.Operation = "report"
+	xsData.Data.Time = "20170908010101"
+	xsData.Common = getXsCommon()
+	xsData.Common.Type = "energy_data"
+
+	xsData.Data.EnergyItems.Items = energyItems
+	xsData.Data.Meters.Items = meters
+
+	text, err := XsMarshal(xsData)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("TCP write:\n" + string(text))
+	text, err = BemsUploadEncrypt(text)
+	if err != nil {
+		panic(err)
+	}
+	text = AddDataHead(text)
+
+	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("TCP read:\n" + string(text))
 }
 
 func main() {
-    xmlstruct := XmlValidate{}
-    xmlstruct.Common.Building_id = "JD310114BG0091"
-    xmlstruct.Common.Gateway_id = "01"
-    xmlstruct.Common.Type = "id_validate"
-    xmlstruct.Id_validate.Operation = "request"
+	secret := "useruseruseruser"
 
-    xmltext := BemsUploadSendXml(xmlstruct)
+	Validate(secret)
 
-    err := xml.Unmarshal(xmltext,&xmlstruct)
-    if err != nil {
-        panic(err)
-    }
+	energyItem := XsEnergyItem{}
+	energyItem.Value = "1"
+	energyItem.Code = "01000"
 
-    secret := []byte("useruseruseruser")
-    sequence := xmlstruct.Id_validate.Sequence
-    myMd5 := md5.Sum(BytesCombine(secret,[]byte(sequence)))
-    xmlstruct.Id_validate.Md5 = fmt.Sprintf("%x", myMd5)
-    xmlstruct.Id_validate.Operation = "md5"
+	meter := XsMeter{}
+	meter.Id = "A001"
+	meter.Name = "1号电表"
+	meter.Function.Id = "WPP"
+	meter.Function.Value = "2"
 
-    xmltext = BemsUploadSendXml(xmlstruct)
-
-    err = xml.Unmarshal(xmltext,&xmlstruct)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Println("id validate result: " + string(xmlstruct.Id_validate.Result))
-
-    dataStruct := XmlData{}
-    dataStruct.Data.Operation = "report"
-    dataStruct.Data.Time = "20170908010101"
-    dataStruct.Common = xmlstruct.Common
-    dataStruct.Common.Type = "energy_data"
-
-    energy_item := XmlEnergyItem{}
-    energy_item.Value = "1"
-    energy_item.Code = "01000"
-    meter := XmlMeter{}
-    meter.Id = "A001"
-    meter.Name = "1号电表"
-    meter.Function.Id = "WPP"
-    meter.Function.Value = "2"
-    dataStruct.Data.Energy_items.Items = append(dataStruct.Data.Energy_items.Items, energy_item)
-    dataStruct.Data.Meters.Items = append(dataStruct.Data.Meters.Items, meter)
-
-
-    xmltext, err = BemsUploadMarshal(dataStruct)
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Println("TCP write:\n" + string(xmltext))
-    xmltext, err = BemsUploadEncrypt(xmltext)
-    if err != nil {
-        panic(err)
-    }
-    xmltext = BmesUploadAddDataHead(xmltext)
-
-    xmltext, err = TCPwr("hncj1.yeep.net.cn:7201",xmltext)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("TCP read:\n" + string(xmltext))
+	energyItems := []XsEnergyItem{energyItem}
+	meters := []XsMeter{meter}
+	SendData(secret, energyItems, meters)
 }
