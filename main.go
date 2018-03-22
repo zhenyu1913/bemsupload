@@ -223,5 +223,8 @@ func sendData() error {
 }
 
 func main() {
-	sendData()
+	err := sendData()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

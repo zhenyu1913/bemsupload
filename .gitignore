@@ -2,3 +2,4 @@ debug
 .vscode
 test
 *.exe
+/bemsupload

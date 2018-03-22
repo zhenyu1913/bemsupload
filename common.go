@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"runtime/debug"
 	"time"
 )
 
@@ -34,7 +35,7 @@ func TCPread(tcpcon *net.TCPConn, readNum int, timeout time.Duration) ([]byte, e
 		return result, err
 	}
 	if byteRead != readNum {
-		return result, errors.New("TCP read timout")
+		return result, errors.New("TCP read timout" + "\n" + string(debug.Stack()))
 	}
 	return result, nil
 }
@@ -42,23 +43,23 @@ func TCPread(tcpcon *net.TCPConn, readNum int, timeout time.Duration) ([]byte, e
 func TCPwr(networkName string, data []byte) ([]byte, error) {
 	ip, err := net.ResolveTCPAddr("tcp", networkName)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, errors.New(err.Error() + "\n" + string(debug.Stack()))
 	}
 	tcpcon, err := net.DialTCP("tcp", nil, ip)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, errors.New(err.Error() + "\n" + string(debug.Stack()))
 	}
 	tcpcon.Write(data)
 
 	result, err := TCPread(tcpcon, 7, 1000*time.Millisecond)
 	if err != nil {
-		return result, err
+		return result, errors.New(err.Error() + "\n" + string(debug.Stack()))
 	}
 	len := BytesToInt(result[3:7])
 
 	result, err = TCPread(tcpcon, len, 1000*time.Millisecond)
 	if err != nil {
-		return result, err
+		return result, errors.New(err.Error() + "\n" + string(debug.Stack()))
 	}
 	return result, nil
 }
