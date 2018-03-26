@@ -63,7 +63,7 @@ type xsData struct {
 	}
 }
 
-type XsDataAck struct {
+type xsDataAck struct {
 	XMLName xml.Name `xml:"root"`
 	Common  xsCommon
 	Data    struct {
@@ -85,16 +85,16 @@ func xsMarshal(xmlstruct interface{}) ([]byte, error) {
 	if err != nil {
 		return []byte(""), err
 	}
-	text = BytesCombine([]byte(`<?xml version="1.0" encoding="UTF-8"?>`+"\n"), text)
+	text = bytesCombine([]byte(`<?xml version="1.0" encoding="UTF-8"?>`+"\n"), text)
 	return text, nil
 }
 
 func addValidateHead(data []byte) []byte {
-	return BytesCombine([]byte("\x1F\x1F\x01"), IntToBytes(len(data)), data)
+	return bytesCombine([]byte("\x1F\x1F\x01"), intToBytes(len(data)), data)
 }
 
 func addDataHead(data []byte) []byte {
-	return BytesCombine([]byte("\x1F\x1F\x03"), IntToBytes(len(data)), data)
+	return bytesCombine([]byte("\x1F\x1F\x03"), intToBytes(len(data)), data)
 }
 
 func sendXsValidate(xs xsValidate) ([]byte, error) {
@@ -105,7 +105,7 @@ func sendXsValidate(xs xsValidate) ([]byte, error) {
 
 	log.Println("TCP write:\n" + string(text))
 	text = addValidateHead(text)
-	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
+	text, err = tcpRW("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func validate(secret string) error {
 	}
 
 	sequence := myXsValidate.IDValidate.Sequence
-	myMd5 := md5.Sum(BytesCombine([]byte(secret), []byte(sequence)))
+	myMd5 := md5.Sum(bytesCombine([]byte(secret), []byte(sequence)))
 	myXsValidate.IDValidate.Md5 = fmt.Sprintf("%x", myMd5)
 	myXsValidate.IDValidate.Operation = "md5"
 
@@ -169,25 +169,25 @@ func sendDataWithItem(secret string, energyItems []xsEnergyItem, meters []xsMete
 	}
 
 	log.Println("TCP write:\n" + string(text))
-	text, err = BemsUploadEncrypt(text)
+	text, err = bemsUploadEncrypt(text)
 	if err != nil {
 		panic(err)
 	}
 	text = addDataHead(text)
 
-	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
+	text, err = tcpRW("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
 		return err
 	}
 	log.Println("TCP read:\n" + string(text))
 
-	xsDataAck := XsDataAck{}
-	err = xml.Unmarshal(text, &xsDataAck)
+	myXsDataAck := xsDataAck{}
+	err = xml.Unmarshal(text, &myXsDataAck)
 	if err != nil {
 		panic(err)
 	}
 
-	if string(xsDataAck.Data.Ack) == "OK" {
+	if string(myXsDataAck.Data.Ack) == "OK" {
 		log.Println("send data: success")
 		return nil
 	}
