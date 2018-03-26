@@ -8,17 +8,17 @@ import (
 	"log"
 )
 
-type XsCommon struct {
-	XMLName     xml.Name `xml:"common"`
-	Building_id string   `xml:"building_id"`
-	Gateway_id  string   `xml:"gateway_id"`
-	Type        string   `xml:"type"`
+type xsCommon struct {
+	XMLName    xml.Name `xml:"common"`
+	BuildingID string   `xml:"building_id"`
+	GatewayID  string   `xml:"gateway_id"`
+	Type       string   `xml:"type"`
 }
 
-type XsValidate struct {
-	XMLName     xml.Name `xml:"root"`
-	Common      XsCommon
-	Id_validate struct {
+type xsValidate struct {
+	XMLName    xml.Name `xml:"root"`
+	Common     xsCommon
+	IDValidate struct {
 		XMLName   xml.Name `xml:"id_validate"`
 		Operation string   `xml:"operation,attr"`
 		Sequence  string   `xml:"sequence"`
@@ -27,45 +27,45 @@ type XsValidate struct {
 	}
 }
 
-type XsEnergyItem struct {
+type xsEnergyItem struct {
 	XMLName xml.Name `xml:"energy_item"`
 	Code    string   `xml:"code,attr"`
 	Value   string   `xml:",innerxml"`
 }
 
-type XsMeter struct {
+type xsMeter struct {
 	XMLName  xml.Name `xml:"meter"`
-	Id       string   `xml:"id,attr"`
+	ID       string   `xml:"id,attr"`
 	Name     string   `xml:"name,attr"`
 	Function struct {
 		XMLName xml.Name `xml:"function"`
-		Id      string   `xml:"id,attr"`
+		ID      string   `xml:"id,attr"`
 		Error   string   `xml:"error,attr"`
 		Value   string   `xml:",innerxml"`
 	}
 }
 
-type XsData struct {
+type xsData struct {
 	XMLName xml.Name `xml:"root"`
-	Common  XsCommon
+	Common  xsCommon
 	Data    struct {
 		XMLName     xml.Name `xml:"data"`
 		Operation   string   `xml:"operation,attr"`
 		Time        string   `xml:"time"`
 		EnergyItems struct {
 			XMLName xml.Name `xml:"energy_items"`
-			Items   []XsEnergyItem
+			Items   []xsEnergyItem
 		}
 		Meters struct {
 			XMLName xml.Name `xml:"meters"`
-			Items   []XsMeter
+			Items   []xsMeter
 		}
 	}
 }
 
 type XsDataAck struct {
 	XMLName xml.Name `xml:"root"`
-	Common  XsCommon
+	Common  xsCommon
 	Data    struct {
 		XMLName xml.Name `xml:"data"`
 		Time    string   `xml:"time"`
@@ -73,14 +73,14 @@ type XsDataAck struct {
 	}
 }
 
-func getXsCommon() XsCommon {
-	xsCommon := XsCommon{}
-	xsCommon.Building_id = "JD310114BG0091"
-	xsCommon.Gateway_id = "01"
-	return xsCommon
+func getXsCommon() xsCommon {
+	myXsCommon := xsCommon{}
+	myXsCommon.BuildingID = "JD310114BG0091"
+	myXsCommon.GatewayID = "01"
+	return myXsCommon
 }
 
-func XsMarshal(xmlstruct interface{}) ([]byte, error) {
+func xsMarshal(xmlstruct interface{}) ([]byte, error) {
 	text, err := xml.MarshalIndent(xmlstruct, "", "    ")
 	if err != nil {
 		return []byte(""), err
@@ -89,22 +89,22 @@ func XsMarshal(xmlstruct interface{}) ([]byte, error) {
 	return text, nil
 }
 
-func AddValidateHead(data []byte) []byte {
+func addValidateHead(data []byte) []byte {
 	return BytesCombine([]byte("\x1F\x1F\x01"), IntToBytes(len(data)), data)
 }
 
-func AddDataHead(data []byte) []byte {
+func addDataHead(data []byte) []byte {
 	return BytesCombine([]byte("\x1F\x1F\x03"), IntToBytes(len(data)), data)
 }
 
-func SendXsValidate(xs XsValidate) ([]byte, error) {
-	text, err := XsMarshal(xs)
+func sendXsValidate(xs xsValidate) ([]byte, error) {
+	text, err := xsMarshal(xs)
 	if err != nil {
 		panic(err)
 	}
 
 	log.Println("TCP write:\n" + string(text))
-	text = AddValidateHead(text)
+	text = addValidateHead(text)
 	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
 		return nil, err
@@ -113,57 +113,57 @@ func SendXsValidate(xs XsValidate) ([]byte, error) {
 	return text, nil
 }
 
-func Validate(secret string) error {
+func validate(secret string) error {
 
-	xsValidate := XsValidate{}
-	xsValidate.Common = getXsCommon()
-	xsValidate.Common.Type = "id_validate"
-	xsValidate.Id_validate.Operation = "request"
+	myXsValidate := xsValidate{}
+	myXsValidate.Common = getXsCommon()
+	myXsValidate.Common.Type = "id_validate"
+	myXsValidate.IDValidate.Operation = "request"
 
-	text, err := SendXsValidate(xsValidate)
+	text, err := sendXsValidate(myXsValidate)
 	if err != nil {
 		return err
 	}
 
-	err = xml.Unmarshal(text, &xsValidate)
+	err = xml.Unmarshal(text, &myXsValidate)
 	if err != nil {
 		panic(err)
 	}
 
-	sequence := xsValidate.Id_validate.Sequence
+	sequence := myXsValidate.IDValidate.Sequence
 	myMd5 := md5.Sum(BytesCombine([]byte(secret), []byte(sequence)))
-	xsValidate.Id_validate.Md5 = fmt.Sprintf("%x", myMd5)
-	xsValidate.Id_validate.Operation = "md5"
+	myXsValidate.IDValidate.Md5 = fmt.Sprintf("%x", myMd5)
+	myXsValidate.IDValidate.Operation = "md5"
 
-	text, err = SendXsValidate(xsValidate)
+	text, err = sendXsValidate(myXsValidate)
 	if err != nil {
 		return err
 	}
 
-	err = xml.Unmarshal(text, &xsValidate)
+	err = xml.Unmarshal(text, &myXsValidate)
 	if err != nil {
 		panic(err)
 	}
 
-	if string(xsValidate.Id_validate.Result) == "pass" {
+	if string(myXsValidate.IDValidate.Result) == "pass" {
 		log.Println("id validate: success")
 		return nil
 	}
 	return errors.New("id validate not getting the correct reply")
 }
 
-func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) error {
+func sendDataWithItem(secret string, energyItems []xsEnergyItem, meters []xsMeter) error {
 
-	xsData := XsData{}
-	xsData.Data.Operation = "report"
-	xsData.Data.Time = "20170908010101"
-	xsData.Common = getXsCommon()
-	xsData.Common.Type = "energy_data"
+	myXsData := xsData{}
+	myXsData.Data.Operation = "report"
+	myXsData.Data.Time = "20170908010101"
+	myXsData.Common = getXsCommon()
+	myXsData.Common.Type = "energy_data"
 
-	xsData.Data.EnergyItems.Items = energyItems
-	xsData.Data.Meters.Items = meters
+	myXsData.Data.EnergyItems.Items = energyItems
+	myXsData.Data.Meters.Items = meters
 
-	text, err := XsMarshal(xsData)
+	text, err := xsMarshal(myXsData)
 	if err != nil {
 		panic(err)
 	}
@@ -173,7 +173,7 @@ func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) error
 	if err != nil {
 		panic(err)
 	}
-	text = AddDataHead(text)
+	text = addDataHead(text)
 
 	text, err = TCPwr("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
@@ -197,24 +197,24 @@ func SendData(secret string, energyItems []XsEnergyItem, meters []XsMeter) error
 func sendData() error {
 	secret := "useruseruseruser"
 
-	err := Validate(secret)
+	err := validate(secret)
 	if err != nil {
 		return err
 	}
 
-	energyItem := XsEnergyItem{}
-	energyItem.Value = "1"
-	energyItem.Code = "01000"
+	myEnergyItem := xsEnergyItem{}
+	myEnergyItem.Value = "1"
+	myEnergyItem.Code = "01000"
 
-	meter := XsMeter{}
-	meter.Id = "A001"
-	meter.Name = "1号电表"
-	meter.Function.Id = "WPP"
-	meter.Function.Value = "2"
+	myMeter := xsMeter{}
+	myMeter.ID = "A001"
+	myMeter.Name = "1号电表"
+	myMeter.Function.ID = "WPP"
+	myMeter.Function.Value = "2"
 
-	energyItems := []XsEnergyItem{energyItem}
-	meters := []XsMeter{meter}
-	err = SendData(secret, energyItems, meters)
+	myEnergyItems := []xsEnergyItem{myEnergyItem}
+	myMeters := []xsMeter{myMeter}
+	err = sendDataWithItem(secret, myEnergyItems, myMeters)
 	if err != nil {
 		return err
 	}
