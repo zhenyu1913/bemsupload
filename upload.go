@@ -73,11 +73,11 @@ type xsDataAck struct {
 	}
 }
 
-func getXsCommon() xsCommon {
+func getXsCommon() *xsCommon {
 	myXsCommon := xsCommon{}
 	myXsCommon.BuildingID = "JD310114BG0091"
 	myXsCommon.GatewayID = "01"
-	return myXsCommon
+	return &myXsCommon
 }
 
 func xsMarshal(xmlstruct interface{}) ([]byte, error) {
@@ -97,7 +97,7 @@ func addDataHead(data []byte) []byte {
 	return bytesCombine([]byte("\x1F\x1F\x03"), intToBytes(len(data)), data)
 }
 
-func sendXsValidate(xs xsValidate) ([]byte, error) {
+func sendXsValidate(xs *xsValidate) ([]byte, error) {
 	text, err := xsMarshal(xs)
 	panicErr(err)
 
@@ -114,11 +114,11 @@ func sendXsValidate(xs xsValidate) ([]byte, error) {
 func validate(secret string) error {
 
 	myXsValidate := xsValidate{}
-	myXsValidate.Common = getXsCommon()
+	myXsValidate.Common = *getXsCommon()
 	myXsValidate.Common.Type = "id_validate"
 	myXsValidate.IDValidate.Operation = "request"
 
-	text, err := sendXsValidate(myXsValidate)
+	text, err := sendXsValidate(&myXsValidate)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func validate(secret string) error {
 	myXsValidate.IDValidate.Md5 = fmt.Sprintf("%x", myMd5)
 	myXsValidate.IDValidate.Operation = "md5"
 
-	text, err = sendXsValidate(myXsValidate)
+	text, err = sendXsValidate(&myXsValidate)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 	myXsData := xsData{}
 	myXsData.Data.Operation = "report"
 	myXsData.Data.Time = "20170908010101"
-	myXsData.Common = getXsCommon()
+	myXsData.Common = *getXsCommon()
 	myXsData.Common.Type = "energy_data"
 
 	myXsData.Data.EnergyItems.Items = energyItems
