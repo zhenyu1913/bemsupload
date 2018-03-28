@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"log"
 	"net"
 	"runtime/debug"
 	"time"
@@ -62,4 +63,10 @@ func tcpRW(networkName string, data []byte) ([]byte, error) {
 		return result, errors.New(err.Error() + "\n" + string(debug.Stack()))
 	}
 	return result, nil
+}
+
+func panicErr(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
 }

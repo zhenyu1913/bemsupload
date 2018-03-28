@@ -3,33 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
-
-type configureStruct struct {
-	DataCenter []struct {
-		AESKey          string
-		AESVector       string
-		DCID            string
-		Freq            int
-		IP              string
-		PORT            string
-		UploadSecretKey string
-	}
-	MeterItem []struct {
-		EnergyItemCode string
-		FieldName      string
-		FuncID         string
-		MeterCode      string
-		MeterCodeAlia  string
-		TableName      string
-		Remark         string
-	}
-}
 
 type meter struct {
 	ID         string
@@ -48,14 +26,10 @@ type uploadData struct {
 func getMeterMap() map[string]string {
 
 	db, err := sql.Open("sqlite3", runstatePath)
-	if err != nil {
-		log.Panic(err)
-	}
+	panicErr(err)
 
 	rows, err := db.Query("SELECT * FROM MeterState")
-	if err != nil {
-		log.Panic(err)
-	}
+	panicErr(err)
 
 	db.Close()
 
@@ -71,27 +45,6 @@ func getMeterMap() map[string]string {
 	}
 
 	return meterMap
-}
-
-func getConfigure() *configureStruct {
-	fileByteArray, err := ioutil.ReadFile(configurePath)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	myConfigureStruct := configureStruct{}
-	err = json.Unmarshal(fileByteArray, &myConfigureStruct)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	return &myConfigureStruct
-}
-
-func panicErr(err error) {
-	if err != nil {
-		log.Panic(err)
-	}
 }
 
 func saveData(myUploadData *uploadData) {

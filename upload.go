@@ -99,9 +99,7 @@ func addDataHead(data []byte) []byte {
 
 func sendXsValidate(xs xsValidate) ([]byte, error) {
 	text, err := xsMarshal(xs)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
 
 	log.Println("TCP write:\n" + string(text))
 	text = addValidateHead(text)
@@ -126,9 +124,7 @@ func validate(secret string) error {
 	}
 
 	err = xml.Unmarshal(text, &myXsValidate)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
 
 	sequence := myXsValidate.IDValidate.Sequence
 	myMd5 := md5.Sum(bytesCombine([]byte(secret), []byte(sequence)))
@@ -141,9 +137,7 @@ func validate(secret string) error {
 	}
 
 	err = xml.Unmarshal(text, &myXsValidate)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
 
 	if string(myXsValidate.IDValidate.Result) == "pass" {
 		log.Println("id validate: success")
@@ -164,15 +158,12 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 	myXsData.Data.Meters.Items = meters
 
 	text, err := xsMarshal(myXsData)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
 
 	log.Println("TCP write:\n" + string(text))
 	text, err = bemsUploadEncrypt(text)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
+
 	text = addDataHead(text)
 
 	text, err = tcpRW("hncj1.yeep.net.cn:7201", text)
@@ -183,9 +174,7 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 
 	myXsDataAck := xsDataAck{}
 	err = xml.Unmarshal(text, &myXsDataAck)
-	if err != nil {
-		panic(err)
-	}
+	panicErr(err)
 
 	if string(myXsDataAck.Data.Ack) == "OK" {
 		log.Println("send data: success")
@@ -195,29 +184,33 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 }
 
 func upload() error {
-	secret := "useruseruseruser"
+	configure := getConfigure()
 
-	err := validate(secret)
-	if err != nil {
-		return err
+	for _, dataCenter := range configure.DataCenter {
+
+		err := validate(dataCenter.UploadSecretKey)
+		if err != nil {
+			return err
+		}
+
+		myEnergyItem := xsEnergyItem{}
+		myEnergyItem.Value = "1"
+		myEnergyItem.Code = "01000"
+
+		myMeter := xsMeter{}
+		myMeter.ID = "A001"
+		myMeter.Name = "1号电表"
+		myMeter.Function.ID = "WPP"
+		myMeter.Function.Value = "2"
+
+		myEnergyItems := []xsEnergyItem{myEnergyItem}
+		myMeters := []xsMeter{myMeter}
+		err = sendData(dataCenter.AESVector, myEnergyItems, myMeters)
+		if err != nil {
+			return err
+		}
+
 	}
-
-	myEnergyItem := xsEnergyItem{}
-	myEnergyItem.Value = "1"
-	myEnergyItem.Code = "01000"
-
-	myMeter := xsMeter{}
-	myMeter.ID = "A001"
-	myMeter.Name = "1号电表"
-	myMeter.Function.ID = "WPP"
-	myMeter.Function.Value = "2"
-
-	myEnergyItems := []xsEnergyItem{myEnergyItem}
-	myMeters := []xsMeter{myMeter}
-	err = sendData(secret, myEnergyItems, myMeters)
-	if err != nil {
-		return err
-	}
-
 	return nil
+
 }
