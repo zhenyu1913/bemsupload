@@ -19,8 +19,9 @@ type meter struct {
 }
 
 type uploadData struct {
-	Time   string
-	Meters []meter
+	Time     string
+	Meters   []meter
+	IsUpload map[string]int
 }
 
 func getMeterMap() map[string]string {
@@ -71,14 +72,14 @@ func saveData(myUploadData *uploadData) {
 }
 
 func createData() {
-	myConfigureStruct := getConfigure()
-	log.Printf("read getConfigure :%+v", myConfigureStruct)
+	configure := getConfigure()
+	log.Printf("read getConfigure :%+v", configure)
 	myMeterMap := getMeterMap()
 
 	log.Println("read meter map :", myMeterMap)
 
 	myMeters := []meter{}
-	for _, meterItem := range myConfigureStruct.MeterItem {
+	for _, meterItem := range configure.MeterItem {
 		data, ok := myMeterMap[meterItem.MeterCode]
 		myMeter := meter{}
 		myMeter.ID = meterItem.MeterCodeAlia
@@ -100,8 +101,15 @@ func createData() {
 	}
 	if len(myMeters) >= 1 {
 		myUploadData := uploadData{}
+		myUploadData.IsUpload = make(map[string]int)
+
 		myUploadData.Time = time.Now().Format("20060102150405")
 		myUploadData.Meters = myMeters
+
+		for _, dataCenter := range configure.DataCenter {
+			myUploadData.IsUpload[dataCenter.DCID] = 0
+		}
+
 		log.Printf("make data :%+v", myUploadData)
 		saveData(&myUploadData)
 	}
