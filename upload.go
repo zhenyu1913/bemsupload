@@ -2,10 +2,14 @@ package main
 
 import (
 	"crypto/md5"
+	"database/sql"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 )
 
 type xsCommon struct {
@@ -101,13 +105,13 @@ func sendXsValidate(xs *xsValidate) ([]byte, error) {
 	text, err := xsMarshal(xs)
 	panicErr(err)
 
-	log.Println("TCP write:\n" + string(text))
+	// log.Println("TCP write:\n" + string(text))
 	text = addValidateHead(text)
 	text, err = tcpRW("hncj1.yeep.net.cn:7201", text)
 	if err != nil {
 		return nil, err
 	}
-	log.Println("TCP read:\n" + string(text))
+	// log.Println("TCP read:\n" + string(text))
 	return text, nil
 }
 
@@ -170,7 +174,7 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 	if err != nil {
 		return err
 	}
-	log.Println("TCP read:\n" + string(text))
+	// log.Println("TCP read:\n" + string(text))
 
 	myXsDataAck := xsDataAck{}
 	err = xml.Unmarshal(text, &myXsDataAck)
@@ -183,34 +187,98 @@ func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error
 	return errors.New("send data not getting the correct reply")
 }
 
-func upload() error {
-	configure := getConfigure()
+func getData() *uploadData {
+	db, err := sql.Open("sqlite3", runstatePath)
+	panicErr(err)
 
-	for _, dataCenter := range configure.DataCenter {
+	rows, err := db.Query("SELECT * FROM BemsUploadData LIMIT 1")
+	panicErr(err)
 
-		err := validate(dataCenter.UploadSecretKey)
-		if err != nil {
-			return err
-		}
+	db.Close()
 
-		myEnergyItem := xsEnergyItem{}
-		myEnergyItem.Value = "1"
-		myEnergyItem.Code = "01000"
+	var rlt *uploadData
+	for rows.Next() {
+		var Time string
+		var data string
+		err = rows.Scan(&Time, &data)
+		myUploadData := uploadData{}
+		myUploadData.Time = Time
+		err := json.Unmarshal([]byte(data), &myUploadData.Meters)
+		panicErr(err)
+		rlt = &myUploadData
+	}
+	return rlt
+}
 
+func createXs(myUploadData *uploadData) ([]xsEnergyItem, []xsMeter) {
+	myMeters := []xsMeter{}
+	itemMap := make(map[string]float64)
+	for _, meter := range myUploadData.Meters {
 		myMeter := xsMeter{}
-		myMeter.ID = "A001"
-		myMeter.Name = "1号电表"
-		myMeter.Function.ID = "WPP"
-		myMeter.Function.Value = "2"
+		myMeter.ID = meter.ID
+		myMeter.Name = meter.Name
+		myMeter.Function.ID = meter.FunctionID
+		myMeter.Function.Value = meter.Value
+		myMeters = append(myMeters, myMeter)
 
-		myEnergyItems := []xsEnergyItem{myEnergyItem}
-		myMeters := []xsMeter{myMeter}
-		err = sendData(dataCenter.AESVector, myEnergyItems, myMeters)
-		if err != nil {
-			return err
+		meterValue, err := strconv.ParseFloat(meter.Value, 64)
+		panicErr(err)
+		value, ok := itemMap[meter.EnergyItem]
+		if ok {
+			itemMap[meter.EnergyItem] = meterValue + value
+		} else {
+			itemMap[meter.EnergyItem] = meterValue
 		}
+	}
 
+	myEnergyItems := []xsEnergyItem{}
+
+	for k, v := range itemMap {
+		myXsEnergyItem := xsEnergyItem{}
+		myXsEnergyItem.Code = k
+		myXsEnergyItem.Value = strconv.FormatFloat(v, 'f', -1, 64)
+		myEnergyItems = append(myEnergyItems, myXsEnergyItem)
+	}
+
+	return myEnergyItems, myMeters
+}
+
+func uploadToDataCenter(dataCenter *dataCenterStruct) error {
+	err := validate(dataCenter.UploadSecretKey)
+	if err != nil {
+		return err
+	}
+
+	myUploadData := getData()
+	if myUploadData == nil {
+		return errors.New("no data found in BemsUploadData")
+	}
+	log.Printf("found data :%+v", myUploadData)
+
+	myEnergyItems, myMeters := createXs(myUploadData)
+
+	log.Printf("extract energyItems :%+v", myEnergyItems)
+	log.Printf("extract meters :%+v", myMeters)
+
+	err = sendData(dataCenter.AESVector, myEnergyItems, myMeters)
+	if err != nil {
+		return err
 	}
 	return nil
+}
 
+func upload() {
+	configure := getConfigure()
+
+	if len(configure.DataCenter) < 1 {
+		panicErr(errors.New("There's no data center"))
+	} else {
+		for {
+			err := uploadToDataCenter(&configure.DataCenter[0])
+			if err != nil {
+				log.Println("error:", err)
+			}
+			os.Exit(0)
+		}
+	}
 }

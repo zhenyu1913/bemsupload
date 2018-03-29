@@ -9,21 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type meter struct {
-	ID         string
-	Name       string
-	FunctionID string
-	Error      string
-	Value      string
-	EnergyItem string
-}
-
-type uploadData struct {
-	Time     string
-	Meters   []meter
-	IsUpload map[string]int
-}
-
 func getMeterMap() map[string]string {
 
 	db, err := sql.Open("sqlite3", runstatePath)
@@ -76,7 +61,7 @@ func createData() {
 	log.Printf("read getConfigure :%+v", configure)
 	myMeterMap := getMeterMap()
 
-	log.Println("read meter map :", myMeterMap)
+	// log.Println("read meter map :", myMeterMap)
 
 	myMeters := []meter{}
 	for _, meterItem := range configure.MeterItem {
@@ -101,14 +86,9 @@ func createData() {
 	}
 	if len(myMeters) >= 1 {
 		myUploadData := uploadData{}
-		myUploadData.IsUpload = make(map[string]int)
 
 		myUploadData.Time = time.Now().Format("20060102150405")
 		myUploadData.Meters = myMeters
-
-		for _, dataCenter := range configure.DataCenter {
-			myUploadData.IsUpload[dataCenter.DCID] = 0
-		}
 
 		log.Printf("make data :%+v", myUploadData)
 		saveData(&myUploadData)

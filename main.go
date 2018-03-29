@@ -5,17 +5,19 @@ import (
 	"io/ioutil"
 )
 
+type dataCenterStruct struct {
+	AESKey          string
+	AESVector       string
+	DCID            string
+	Freq            int
+	IP              string
+	PORT            string
+	UploadSecretKey string
+}
+
 type configureStruct struct {
-	DataCenter []struct {
-		AESKey          string
-		AESVector       string
-		DCID            string
-		Freq            int
-		IP              string
-		PORT            string
-		UploadSecretKey string
-	}
-	MeterItem []struct {
+	DataCenter []dataCenterStruct
+	MeterItem  []struct {
 		EnergyItemCode string
 		FieldName      string
 		FuncID         string
@@ -24,6 +26,19 @@ type configureStruct struct {
 		TableName      string
 		Remark         string
 	}
+}
+
+type uploadData struct {
+	Time   string
+	Meters []meter
+}
+type meter struct {
+	ID         string
+	Name       string
+	FunctionID string
+	Error      string
+	Value      string
+	EnergyItem string
 }
 
 func getConfigure() *configureStruct {
@@ -42,5 +57,6 @@ func main() {
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
-	createData()
+	// createData()
+	upload()
 }
