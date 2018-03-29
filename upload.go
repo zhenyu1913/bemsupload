@@ -12,6 +12,19 @@ import (
 	"strconv"
 )
 
+var _myXsCommon *xsCommon
+
+func setXsCommon(myXsCommon *xsCommon) {
+	_myXsCommon = myXsCommon
+}
+
+func getXsCommon() *xsCommon {
+	if _myXsCommon == nil {
+		panicErr(errors.New("get nil xscommon"))
+	}
+	return _myXsCommon
+}
+
 type xsCommon struct {
 	XMLName    xml.Name `xml:"common"`
 	BuildingID string   `xml:"building_id"`
@@ -75,13 +88,6 @@ type xsDataAck struct {
 		Time    string   `xml:"time"`
 		Ack     string   `xml:"ack"`
 	}
-}
-
-func getXsCommon() *xsCommon {
-	myXsCommon := xsCommon{}
-	myXsCommon.BuildingID = "JD310114BG0091"
-	myXsCommon.GatewayID = "01"
-	return &myXsCommon
 }
 
 func xsMarshal(xmlstruct interface{}) ([]byte, error) {
@@ -150,16 +156,15 @@ func validate(secret string) error {
 	return errors.New("id validate not getting the correct reply")
 }
 
-func sendData(secret string, energyItems []xsEnergyItem, meters []xsMeter) error {
+func sendData(secret string, myUploadData *uploadData) error {
 
 	myXsData := xsData{}
 	myXsData.Data.Operation = "report"
-	myXsData.Data.Time = "20170908010101"
+	myXsData.Data.Time = myUploadData.Time
 	myXsData.Common = *getXsCommon()
 	myXsData.Common.Type = "energy_data"
 
-	myXsData.Data.EnergyItems.Items = energyItems
-	myXsData.Data.Meters.Items = meters
+	myXsData.Data.EnergyItems.Items, myXsData.Data.Meters.Items = createXs(myUploadData)
 
 	text, err := xsMarshal(myXsData)
 	panicErr(err)
@@ -207,6 +212,15 @@ func getData() *uploadData {
 		panicErr(err)
 		rlt = &myUploadData
 	}
+
+	if rlt != nil {
+		myXsCommon := xsCommon{}
+		meterID := rlt.Meters[0].ID
+		len := len(meterID)
+		myXsCommon.BuildingID = meterID[0 : len-6]
+		myXsCommon.GatewayID = meterID[len-6 : len-4]
+		_myXsCommon = &myXsCommon
+	}
 	return rlt
 }
 
@@ -215,7 +229,7 @@ func createXs(myUploadData *uploadData) ([]xsEnergyItem, []xsMeter) {
 	itemMap := make(map[string]float64)
 	for _, meter := range myUploadData.Meters {
 		myMeter := xsMeter{}
-		myMeter.ID = meter.ID
+		myMeter.ID = meter.ID[len(meter.ID)-4 : len(meter.ID)]
 		myMeter.Name = meter.Name
 		myMeter.Function.ID = meter.FunctionID
 		myMeter.Function.Value = meter.Value
@@ -244,23 +258,20 @@ func createXs(myUploadData *uploadData) ([]xsEnergyItem, []xsMeter) {
 }
 
 func uploadToDataCenter(dataCenter *dataCenterStruct) error {
-	err := validate(dataCenter.UploadSecretKey)
-	if err != nil {
-		return err
-	}
 
 	myUploadData := getData()
 	if myUploadData == nil {
 		return errors.New("no data found in BemsUploadData")
 	}
+
+	err := validate(dataCenter.UploadSecretKey)
+	if err != nil {
+		return err
+	}
+
 	log.Printf("found data :%+v", myUploadData)
 
-	myEnergyItems, myMeters := createXs(myUploadData)
-
-	log.Printf("extract energyItems :%+v", myEnergyItems)
-	log.Printf("extract meters :%+v", myMeters)
-
-	err = sendData(dataCenter.AESVector, myEnergyItems, myMeters)
+	err = sendData(dataCenter.AESVector, myUploadData)
 	if err != nil {
 		return err
 	}

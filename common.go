@@ -70,3 +70,11 @@ func panicErr(err error) {
 		log.Panic(err)
 	}
 }
+
+func sliceNegCut(s []interface{}, start int, end int) []interface{} {
+	if end >= 0 {
+		panicErr(errors.New("sliceNegCut get positive end"))
+	}
+	len := len(s)
+	return s[start : len+1+end]
+}
