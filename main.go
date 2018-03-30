@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -52,11 +53,23 @@ func getConfigure() *configureStruct {
 	return &myConfigureStruct
 }
 
+func writeDCMLog(s string) {
+
+}
+
+func protectGo(f func()) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err, " fuck")
+		}
+	}()
+	f()
+}
+
 func main() {
-	// err := upload()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	createData()
-	upload()
+	go createTask()
+	go uploadTask()
+	for {
+
+	}
 }

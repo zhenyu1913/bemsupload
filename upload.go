@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
+	"time"
 )
 
 var _myXsCommon *xsCommon
@@ -257,6 +257,22 @@ func createXs(myUploadData *uploadData) ([]xsEnergyItem, []xsMeter) {
 	return myEnergyItems, myMeters
 }
 
+func deleteData(myUploadData *uploadData) {
+
+	db, err := sql.Open("sqlite3", runstatePath)
+	panicErr(err)
+
+	cmd := "DELETE FROM bemsUploadData where CreatTime == " + myUploadData.Time
+
+	fmt.Println(cmd)
+
+	_, err = db.Exec(cmd)
+
+	panicErr(err)
+
+	db.Close()
+}
+
 func uploadToDataCenter(dataCenter *dataCenterStruct) error {
 
 	myUploadData := getData()
@@ -275,10 +291,12 @@ func uploadToDataCenter(dataCenter *dataCenterStruct) error {
 	if err != nil {
 		return err
 	}
+
+	deleteData(myUploadData)
 	return nil
 }
 
-func upload() {
+func uploadTask() {
 	configure := getConfigure()
 
 	if len(configure.DataCenter) < 1 {
@@ -288,8 +306,8 @@ func upload() {
 			err := uploadToDataCenter(&configure.DataCenter[0])
 			if err != nil {
 				log.Println("error:", err)
+				time.Sleep(5 * time.Second)
 			}
-			os.Exit(0)
 		}
 	}
 }

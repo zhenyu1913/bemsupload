@@ -56,6 +56,13 @@ func saveData(myUploadData *uploadData) {
 	db.Close()
 }
 
+func createTask() {
+	for {
+		createData()
+		time.Sleep(5 * time.Second)
+	}
+}
+
 func createData() {
 	configure := getConfigure()
 	log.Printf("read getConfigure :%+v", configure)
