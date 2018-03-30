@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"runtime/debug"
+	"time"
 )
 
 type dataCenterStruct struct {
@@ -59,20 +60,20 @@ func writeDCMLog(s string) {
 }
 
 func protectGo(f func()) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Fatal Error !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			log.Println(err)
-			log.Println(debug.Stack())
-		}
-	}()
-	f()
+	for {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Println(string(debug.Stack()))
+				}
+			}()
+			f()
+		}()
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func main() {
 	go protectGo(createTask)
-	go protectGo(uploadTask)
-	for {
-
-	}
+	protectGo(uploadTask)
 }

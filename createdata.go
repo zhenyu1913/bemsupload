@@ -57,18 +57,25 @@ func saveData(myUploadData *uploadData) {
 }
 
 func createTask() {
+	configure := getConfigure()
+	log.Printf("read getConfigure :%+v", configure)
+	interval := int64(configure.DataCenter[0].Freq)
+	nextTime := int64(0)
 	for {
-		createData()
+		now := time.Now().Unix() / 60
+		for nextTime < now {
+			nextTime += interval
+		}
+		if nextTime == now {
+			createData(configure)
+			nextTime += interval
+		}
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func createData() {
-	configure := getConfigure()
-	log.Printf("read getConfigure :%+v", configure)
+func createData(configure *configureStruct) {
 	myMeterMap := getMeterMap()
-
-	// log.Println("read meter map :", myMeterMap)
 
 	myMeters := []meter{}
 	for _, meterItem := range configure.MeterItem {
