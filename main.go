@@ -75,5 +75,8 @@ func protectGo(f func()) {
 
 func main() {
 	go protectGo(createTask)
-	protectGo(uploadTask)
+	go protectGo(uploadTask)
+	for {
+
+	}
 }
