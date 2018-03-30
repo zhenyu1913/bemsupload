@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
+	"runtime/debug"
 )
 
 type dataCenterStruct struct {
@@ -60,15 +61,17 @@ func writeDCMLog(s string) {
 func protectGo(f func()) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err, " fuck")
+			log.Println("Fatal Error !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			log.Println(err)
+			log.Println(debug.Stack())
 		}
 	}()
 	f()
 }
 
 func main() {
-	go createTask()
-	go uploadTask()
+	go protectGo(createTask)
+	go protectGo(uploadTask)
 	for {
 
 	}

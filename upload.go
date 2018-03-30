@@ -169,7 +169,7 @@ func sendData(secret string, myUploadData *uploadData) error {
 	text, err := xsMarshal(myXsData)
 	panicErr(err)
 
-	log.Println("TCP write:\n" + string(text))
+	// log.Println("TCP write:\n" + string(text))
 	text, err = bemsUploadEncrypt(text)
 	panicErr(err)
 
@@ -264,7 +264,7 @@ func deleteData(myUploadData *uploadData) {
 
 	cmd := "DELETE FROM bemsUploadData where CreatTime == " + myUploadData.Time
 
-	fmt.Println(cmd)
+	log.Println(cmd)
 
 	_, err = db.Exec(cmd)
 
@@ -305,7 +305,7 @@ func uploadTask() {
 		for {
 			err := uploadToDataCenter(&configure.DataCenter[0])
 			if err != nil {
-				log.Println("error:", err)
+				log.Println(err)
 				time.Sleep(5 * time.Second)
 			}
 		}

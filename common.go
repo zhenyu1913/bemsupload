@@ -44,23 +44,23 @@ func tcpRead(tcpcon *net.TCPConn, readNum int, timeout time.Duration) ([]byte, e
 func tcpRW(networkName string, data []byte) ([]byte, error) {
 	ip, err := net.ResolveTCPAddr("tcp", networkName)
 	if err != nil {
-		return []byte{}, errors.New(err.Error() + "\n" + string(debug.Stack()))
+		return []byte{}, err
 	}
 	tcpcon, err := net.DialTCP("tcp", nil, ip)
 	if err != nil {
-		return []byte{}, errors.New(err.Error() + "\n" + string(debug.Stack()))
+		return []byte{}, err
 	}
 	tcpcon.Write(data)
 
 	result, err := tcpRead(tcpcon, 7, 1000*time.Millisecond)
 	if err != nil {
-		return result, errors.New(err.Error() + "\n" + string(debug.Stack()))
+		return result, err
 	}
 	len := bytesToInt(result[3:7])
 
 	result, err = tcpRead(tcpcon, len, 1000*time.Millisecond)
 	if err != nil {
-		return result, errors.New(err.Error() + "\n" + string(debug.Stack()))
+		return result, err
 	}
 	return result, nil
 }
