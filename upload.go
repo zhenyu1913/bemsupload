@@ -107,13 +107,13 @@ func addDataHead(data []byte) []byte {
 	return bytesCombine([]byte("\x1F\x1F\x03"), intToBytes(len(data)), data)
 }
 
-func sendXsValidate(xs *xsValidate) ([]byte, error) {
+func sendXsValidate(host string, xs *xsValidate) ([]byte, error) {
 	text, err := xsMarshal(xs)
 	panicErr(err)
 
 	// log.Println("TCP write:\n" + string(text))
 	text = addValidateHead(text)
-	text, err = tcpRW("hncj1.yeep.net.cn:7201", text)
+	text, err = tcpRW(host, text)
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +121,15 @@ func sendXsValidate(xs *xsValidate) ([]byte, error) {
 	return text, nil
 }
 
-func validate(secret string) error {
+func validate(dataCenter *dataCenterStruct) error {
 
 	myXsValidate := xsValidate{}
 	myXsValidate.Common = *getXsCommon()
 	myXsValidate.Common.Type = "id_validate"
 	myXsValidate.IDValidate.Operation = "request"
 
-	text, err := sendXsValidate(&myXsValidate)
+	host := dataCenter.IP + ":" + dataCenter.PORT
+	text, err := sendXsValidate(host, &myXsValidate)
 	if err != nil {
 		return err
 	}
@@ -137,11 +138,11 @@ func validate(secret string) error {
 	panicErr(err)
 
 	sequence := myXsValidate.IDValidate.Sequence
-	myMd5 := md5.Sum(bytesCombine([]byte(secret), []byte(sequence)))
+	myMd5 := md5.Sum(bytesCombine([]byte(dataCenter.UploadSecretKey), []byte(sequence)))
 	myXsValidate.IDValidate.Md5 = fmt.Sprintf("%x", myMd5)
 	myXsValidate.IDValidate.Operation = "md5"
 
-	text, err = sendXsValidate(&myXsValidate)
+	text, err = sendXsValidate(host, &myXsValidate)
 	if err != nil {
 		return err
 	}
@@ -264,7 +265,7 @@ func deleteData(myUploadData *uploadData) {
 
 	cmd := "DELETE FROM bemsUploadData where CreatTime == " + myUploadData.Time
 
-	log.Println(cmd)
+	log.Println("delete data create by " + myUploadData.Time)
 
 	_, err = db.Exec(cmd)
 
@@ -279,13 +280,12 @@ func uploadToDataCenter(dataCenter *dataCenterStruct) error {
 	if myUploadData == nil {
 		return errors.New("no data found in BemsUploadData")
 	}
+	log.Printf("found data :%+v", myUploadData)
 
-	err := validate(dataCenter.UploadSecretKey)
+	err := validate(dataCenter)
 	if err != nil {
 		return err
 	}
-
-	log.Printf("found data :%+v", myUploadData)
 
 	err = sendData(dataCenter.AESVector, myUploadData)
 	if err != nil {
