@@ -4,3 +4,4 @@ test
 *.exe
 /bemsupload
 *.db
+bems_upload.conf
