@@ -1,5 +1,5 @@
 package main
 
-var configurePath = `C:\ftp\bems_upload.conf`
-var runstatePath = `C:\ftp\runstate.db`
-var logPath = `C:\ftp\log.db`
+var configurePath = `/DCM/akehome/etc/bems_upload.conf`
+var runstatePath = `/DCM/akehome/data/runstate.db`
+var logPath = `/DCM/akehome/data/log.db`
