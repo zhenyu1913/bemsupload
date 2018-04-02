@@ -60,15 +60,12 @@ func createTask() {
 	configure := getConfigure()
 	log.Printf("read configure :%+v", configure)
 	interval := int64(configure.DataCenter[0].Freq)
-	nextTime := int64(0)
+	var doneTime int64
 	for {
 		now := time.Now().Unix() / 60
-		for nextTime < now {
-			nextTime += interval
-		}
-		if nextTime == now {
+		if now%interval == 0 && now != doneTime {
 			createData(configure)
-			nextTime += interval
+			doneTime = now
 		}
 		time.Sleep(5 * time.Second)
 	}
