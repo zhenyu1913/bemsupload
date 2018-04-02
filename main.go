@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime/debug"
 	"time"
 )
@@ -70,6 +71,17 @@ func protectGo(f func()) {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if os.Args[1] == "once" {
+			configure := getConfigure()
+			createData(configure)
+			err := uploadToDataCenter(&configure.DataCenter[0])
+			if err != nil {
+				log.Println(err)
+			}
+			os.Exit(0)
+		}
+	}
 	go protectGo(createTask)
 	go protectGo(uploadTask)
 	for {
