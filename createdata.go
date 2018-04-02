@@ -58,7 +58,7 @@ func saveData(myUploadData *uploadData) {
 
 func createTask() {
 	configure := getConfigure()
-	log.Printf("read getConfigure :%+v", configure)
+	log.Printf("read configure :%+v", configure)
 	interval := int64(configure.DataCenter[0].Freq)
 	nextTime := int64(0)
 	for {
