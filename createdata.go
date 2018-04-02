@@ -33,6 +33,24 @@ func getMeterMap() map[string]string {
 	return meterMap
 }
 
+func deleteDataOneMonthAgo() {
+
+	db, err := sql.Open("sqlite3", runstatePath)
+	panicErr(err)
+
+	now := time.Now()
+	d, err := time.ParseDuration("-720h")
+	panicErr(err)
+
+	oneMonthBefore := now.Add(d).Format("20060102150405")
+	cmd := "DELETE FROM BemsUploadData WHERE CreatTime < " + oneMonthBefore
+
+	_, err = db.Exec(cmd)
+	panicErr(err)
+
+	db.Close()
+}
+
 func saveData(myUploadData *uploadData) {
 
 	db, err := sql.Open("sqlite3", runstatePath)
@@ -102,6 +120,7 @@ func createData(configure *configureStruct) {
 		myUploadData.Meters = myMeters
 
 		log.Printf("make data :%+v", myUploadData)
+		deleteDataOneMonthAgo()
 		saveData(&myUploadData)
 	}
 }

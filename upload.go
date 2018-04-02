@@ -204,11 +204,11 @@ func getData() *uploadData {
 
 	var rlt *uploadData
 	for rows.Next() {
-		var Time string
+		var Time int64
 		var data string
 		err = rows.Scan(&Time, &data)
 		myUploadData := uploadData{}
-		myUploadData.Time = Time
+		myUploadData.Time = strconv.FormatInt(Time, 10)
 		err := json.Unmarshal([]byte(data), &myUploadData.Meters)
 		panicErr(err)
 		rlt = &myUploadData
@@ -305,7 +305,7 @@ func uploadTask() {
 			err := uploadToDataCenter(&configure.DataCenter[0])
 			if err != nil {
 				log.Println(err)
-				time.Sleep(1 * time.Minute)
+				time.Sleep(1 * time.Second)
 			}
 		}
 	}
