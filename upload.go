@@ -305,7 +305,7 @@ func uploadTask() {
 			err := uploadToDataCenter(&configure.DataCenter[0])
 			if err != nil {
 				log.Println(err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(1 * time.Minute)
 			}
 		}
 	}
