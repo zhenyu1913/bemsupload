@@ -55,10 +55,6 @@ func getConfigure() *configureStruct {
 	return &myConfigureStruct
 }
 
-func writeDCMLog(s string) {
-
-}
-
 func protectGo(f func()) {
 	for {
 		func() {
@@ -77,6 +73,6 @@ func main() {
 	go protectGo(createTask)
 	go protectGo(uploadTask)
 	for {
-
+		time.Sleep(1 * time.Second)
 	}
 }
