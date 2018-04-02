@@ -280,7 +280,6 @@ func uploadToDataCenter(dataCenter *dataCenterStruct) error {
 	if myUploadData == nil {
 		return errors.New("no data found in BemsUploadData")
 	}
-	log.Printf("found data :%+v", myUploadData)
 
 	err := validate(dataCenter)
 	if err != nil {
